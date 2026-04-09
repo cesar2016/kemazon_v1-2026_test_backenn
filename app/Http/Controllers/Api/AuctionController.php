@@ -28,7 +28,8 @@ class AuctionController extends Controller
         }
 
         $query = Auction::with(['product:id,name,slug,thumbnail,user_id', 'product.user:id,name', 'winningBid.user:id,name'])
-            ->active();
+            ->whereIn('status', ['active', 'ended'])
+            ->where('ends_at', '>', now()->subDays(7));
 
         $filter = $request->get('filter', 'active');
 
