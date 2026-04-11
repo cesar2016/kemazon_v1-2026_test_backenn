@@ -28,21 +28,30 @@ class AuctionController extends Controller
         }
 
         $query = Auction::with(['product:id,name,slug,thumbnail,user_id', 'product.user:id,name', 'winningBid.user:id,name'])
-            ->whereIn('status', ['active', 'ended'])
-            ->where('ends_at', '>', now()->subDays(7));
+            ->whereIn('status', ['active', 'ended', 'pending']);
 
         $filter = $request->get('filter', 'active');
 
         switch ($filter) {
             case 'ending':
-                $query->where('ends_at', '<=', now()->addHours(6));
+                $query->where('status', 'active')
+                    ->where('ends_at', '>', now())
+                    ->where('ends_at', '<=', now()->addHours(24));
                 $query->orderBy('ends_at', 'asc');
                 break;
             case 'new':
-                $query->where('created_at', '>=', now()->subDays(3));
-                $query->orderBy('created_at', 'desc');
+                $query->where('status', 'active')
+                    ->orderBy('created_at', 'desc');
                 break;
+            case 'finished':
+                $query->where('status', 'ended')
+                    ->where('ends_at', '>', now()->subDays(30));
+                $query->orderBy('ends_at', 'desc');
+                break;
+            case 'active':
             default:
+                $query->where('status', 'active')
+                    ->where('ends_at', '>', now());
                 $query->orderBy('ends_at', 'asc');
                 break;
         }
