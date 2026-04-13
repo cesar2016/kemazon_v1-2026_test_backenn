@@ -14,8 +14,6 @@ class Product extends Model
 {
     use HasFactory;
 
-    protected $appends = ['likes_count', 'valid_visits_count'];
-
     protected $fillable = [
         'user_id',
         'category_id',
