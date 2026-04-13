@@ -68,33 +68,30 @@ class AuctionController extends Controller
         return response()->json($auctions);
     }
 
-    public function show(int $id): JsonResponse
+    public function show(string $slug): JsonResponse
     {
-        $auction = Auction::findOrFail($id);
-
-        // Proactively manage auction status
-        $auctionService = new \App\Services\AuctionService();
-        $auctionService->activatePending();
-        $auctionService->checkAndMarkEnded($auction);
-
-        $auction->load([
-            'product:id,name,slug,thumbnail,images,description,user_id,likes_count,valid_visits_count',
-            'product.user:id,name,avatar,created_at',
-            'product.likes.user:id,name,avatar',
-            'product.visitors.user:id,name,avatar',
-            'bids' => function ($query) {
-                $query->orderBy('amount', 'desc')->limit(10);
-            },
-            'bids.user:id,name,avatar',
-            'winningBid.user:id,name,avatar',
-        ]);
-
-        $totalBids = $auction->bids()->count();
-
-        return response()->json([
-            'auction' => $auction,
-            'total_bids' => $totalBids,
-        ]);
+        try {
+            $product = Product::where('slug', $slug)->firstOrFail();
+            $auction = Auction::where('product_id', $product->id)->with(['product', 'bids.user'])->firstOrFail();
+            
+            $productArray = $product->toArray();
+            $productArray['likes_count'] = $product->likes()->count();
+            $productArray['valid_visits_count'] = $product->visits()->where('is_valid', true)->count();
+            
+            $auctionArray = $auction->toArray();
+            $auctionArray['product'] = $productArray;
+            $auctionArray['slug'] = $product->slug;
+            
+            return response()->json([
+                'auction' => $auctionArray,
+                'total_bids' => $auction->bids->count(),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Subasta no encontrada',
+                'auction' => null,
+            ], 404);
+        }
     }
 
     public function store(Request $request): JsonResponse

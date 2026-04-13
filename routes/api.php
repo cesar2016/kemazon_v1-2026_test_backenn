@@ -42,7 +42,7 @@ Route::post('/products/{id}/visit/ping', [ProductVisitController::class, 'ping']
 Route::get('/products/{id}/visitors', [ProductVisitController::class, 'index']);
 
 Route::get('/auctions', [AuctionController::class, 'index']);
-Route::get('/auctions/{id}', [AuctionController::class, 'show']);
+Route::get('/auctions/{slug}', [AuctionController::class, 'show']);
 
 Route::middleware('auth.api')->group(function () {
     Route::get('/cart', [CartController::class, 'index']);
