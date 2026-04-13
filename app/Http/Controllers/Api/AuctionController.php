@@ -78,8 +78,10 @@ class AuctionController extends Controller
         $auctionService->checkAndMarkEnded($auction);
 
         $auction->load([
-            'product:id,name,slug,thumbnail,images,description,user_id',
+            'product:id,name,slug,thumbnail,images,description,user_id,likes_count,valid_visits_count',
             'product.user:id,name,avatar,created_at',
+            'product.likes.user:id,name,avatar',
+            'product.visitors.user:id,name,avatar',
             'bids' => function ($query) {
                 $query->orderBy('amount', 'desc')->limit(10);
             },
@@ -88,6 +90,14 @@ class AuctionController extends Controller
         ]);
 
         $totalBids = $auction->bids()->count();
+
+        $productArray = $auction->product->toArray();
+        $productArray['likes_count'] = $auction->product->likes_count;
+        $productArray['valid_visits_count'] = $auction->product->valid_visits_count;
+        $productArray['likes'] = $auction->product->likes()->with('user:id,name,avatar')->get();
+        $productArray['visitors'] = $auction->product->visits()->with('user:id,name,avatar')->latest()->limit(50)->get();
+        
+        $auction->product = $productArray;
 
         return response()->json([
             'auction' => $auction,
