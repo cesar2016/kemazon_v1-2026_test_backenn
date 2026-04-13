@@ -71,8 +71,25 @@ class AuctionController extends Controller
     public function show(string $slug): JsonResponse
     {
         try {
-            $product = Product::where('slug', $slug)->firstOrFail();
-            $auction = Auction::where('product_id', $product->id)->with(['product', 'bids.user'])->firstOrFail();
+            $product = Product::where('slug', $slug)->first();
+            
+            if (!$product) {
+                return response()->json([
+                    'error' => 'Producto no encontrado',
+                    'auction' => null,
+                ], 404);
+            }
+            
+            $auction = Auction::where('product_id', $product->id)->first();
+            
+            if (!$auction) {
+                return response()->json([
+                    'error' => 'Subasta no encontrada para este producto',
+                    'auction' => null,
+                ], 404);
+            }
+            
+            $auction->load(['bids.user']);
             
             $productArray = $product->toArray();
             $productArray['likes_count'] = $product->likes()->count();
@@ -88,9 +105,10 @@ class AuctionController extends Controller
             ]);
         } catch (\Exception $e) {
             return response()->json([
-                'error' => 'Subasta no encontrada',
+                'error' => 'Error al cargar la subasta',
+                'message' => $e->getMessage(),
                 'auction' => null,
-            ], 404);
+            ], 500);
         }
     }
 
