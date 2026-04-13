@@ -91,13 +91,16 @@ class AuctionController extends Controller
 
         $totalBids = $auction->bids()->count();
 
-        $productArray = $auction->product->toArray();
-        $productArray['likes_count'] = $auction->product->likes_count;
-        $productArray['valid_visits_count'] = $auction->product->valid_visits_count;
-        $productArray['likes'] = $auction->product->likes()->with('user:id,name,avatar')->get();
-        $productArray['visitors'] = $auction->product->visits()->with('user:id,name,avatar')->latest()->limit(50)->get();
-        
-        $auction->product = $productArray;
+        try {
+            $productArray = $auction->product->toArray();
+            $productArray['likes'] = $auction->product->likes()->with('user:id,name,avatar')->get()->toArray();
+            $productArray['visitors'] = $auction->product->visits()->with('user:id,name,avatar')->latest()->limit(50)->get()->toArray();
+            
+            $auction->product = $productArray;
+        } catch (\Exception $e) {
+            $productArray = $auction->product->toArray();
+            $auction->product = $productArray;
+        }
 
         return response()->json([
             'auction' => $auction,
