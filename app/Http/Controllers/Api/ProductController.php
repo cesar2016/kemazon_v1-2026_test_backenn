@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Product;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
@@ -88,14 +89,21 @@ class ProductController extends Controller
 
     public function show(string $slug): JsonResponse
     {
+        $hasUsersTable = Schema::hasTable('users');
+
+        $relations = [
+            'category:id,name,slug',
+            'auction',
+        ];
+
+        if ($hasUsersTable) {
+            $relations[] = 'user:id,name,avatar,created_at';
+            $relations[] = 'auction.winner:id,name';
+            $relations[] = 'auction.bids.user:id,name';
+        }
+
         $product = Product::where('slug', $slug)
-            ->with([
-                'user:id,name,avatar,created_at',
-                'category:id,name,slug',
-                'auction',
-                'auction.winner:id,name',
-                'auction.bids.user:id,name'
-            ])
+            ->with($relations)
             ->firstOrFail();
 
         // Proactively manage auction status
@@ -104,7 +112,10 @@ class ProductController extends Controller
             $auctionService->activatePending();
             $auctionService->checkAndMarkEnded($product->auction);
             // Refresh to get updated status and winner if it just ended or changed
-            $product->load(['auction', 'auction.winner:id,name', 'auction.bids.user:id,name']);
+            $product->load($hasUsersTable
+                ? ['auction', 'auction.winner:id,name', 'auction.bids.user:id,name']
+                : ['auction']
+            );
         }
 
         $productArray = $product->toArray();
