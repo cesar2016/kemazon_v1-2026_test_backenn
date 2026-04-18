@@ -42,15 +42,20 @@ class ProductVisitController extends Controller
             ->first();
 
         if (!$visit) {
-            $visit = ProductVisit::create([
+            $payload = [
                 'product_id' => $product->id,
                 'user_id' => $user ? $user->id : null,
                 'ip_address' => $ip,
                 'session_id' => $sessionId,
                 'duration' => 0,
-                'is_valid' => false,
                 'last_active_at' => Carbon::now(),
-            ]);
+            ];
+
+            if (ProductVisit::hasIsValidColumn()) {
+                $payload['is_valid'] = false;
+            }
+
+            $visit = ProductVisit::create($payload);
         }
 
         // Increment duration (assume ping happens every 5s)
@@ -58,7 +63,7 @@ class ProductVisitController extends Controller
         $visit->last_active_at = Carbon::now();
 
         // 5 second rule: duration >= 5s
-        if ($visit->duration >= 5) {
+        if (ProductVisit::hasIsValidColumn() && $visit->duration >= 5) {
             $visit->is_valid = true;
         }
 
@@ -66,7 +71,7 @@ class ProductVisitController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'is_valid' => $visit->is_valid,
+            'is_valid' => ProductVisit::hasIsValidColumn() ? (bool) $visit->is_valid : $visit->duration >= 5,
             'duration' => $visit->duration,
         ]);
     }
@@ -76,7 +81,7 @@ class ProductVisitController extends Controller
         $product = Product::findOrFail($productId);
 
         $visitors = $product->visits()
-            ->where('is_valid', true)
+            ->valid()
             ->with('user:id,name,avatar')
             ->get()
             ->map(function ($visit) {

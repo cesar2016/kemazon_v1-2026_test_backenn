@@ -85,7 +85,7 @@ class Product extends Model
 
     public function getValidVisitsCountAttribute(): int
     {
-        return $this->visits()->where('is_valid', true)->count();
+        return $this->visits()->valid()->count();
     }
 
     public function isLikedByUser(?int $userId, string $ip): bool

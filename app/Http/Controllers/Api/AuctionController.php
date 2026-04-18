@@ -93,7 +93,7 @@ class AuctionController extends Controller
             
             $productArray = $product->toArray();
             $productArray['likes_count'] = $product->likes()->count();
-            $productArray['valid_visits_count'] = $product->visits()->where('is_valid', true)->count();
+            $productArray['valid_visits_count'] = $product->visits()->valid()->count();
             
             $auctionArray = $auction->toArray();
             $auctionArray['product'] = $productArray;
