@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\ProductLike;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class ProductLikeController extends Controller
 {
@@ -71,6 +72,14 @@ class ProductLikeController extends Controller
                     'type' => 'guest',
                 ];
             });
+
+        Log::info('Product likers fetched', [
+            'product_id' => $product->id,
+            'auth_user_id' => Auth::guard('api')->id(),
+            'likes_count' => $likers->count(),
+            'liker_types' => $likers->pluck('type')->values()->all(),
+            'liker_names' => $likers->pluck('name')->values()->all(),
+        ]);
 
         return response()->json([
             'likers' => $likers,

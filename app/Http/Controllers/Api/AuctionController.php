@@ -13,6 +13,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 class AuctionController extends Controller
@@ -94,6 +95,14 @@ class AuctionController extends Controller
             $productArray = $product->toArray();
             $productArray['likes_count'] = $product->likes()->count();
             $productArray['valid_visits_count'] = $product->visits()->valid()->count();
+
+            Log::info('Auction detail payload prepared', [
+                'slug' => $slug,
+                'auction_id' => $auction->id,
+                'product_id' => $product->id,
+                'likes_count' => $productArray['likes_count'],
+                'valid_visits_count' => $productArray['valid_visits_count'],
+            ]);
             
             $auctionArray = $auction->toArray();
             $auctionArray['product'] = $productArray;

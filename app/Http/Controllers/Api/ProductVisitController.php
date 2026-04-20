@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\ProductVisit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class ProductVisitController extends Controller
@@ -102,6 +103,14 @@ class ProductVisitController extends Controller
                     'last_visit' => $visit->created_at->toDateTimeString(),
                 ];
             });
+
+        Log::info('Product visitors fetched', [
+            'product_id' => $product->id,
+            'auth_user_id' => Auth::guard('api')->id(),
+            'visitors_count' => $visitors->count(),
+            'visitor_types' => $visitors->pluck('type')->values()->all(),
+            'visitor_names' => $visitors->pluck('name')->values()->all(),
+        ]);
 
         return response()->json([
             'visitors' => $visitors,
