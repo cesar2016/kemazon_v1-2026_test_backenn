@@ -6,29 +6,182 @@ use App\Http\Controllers\Controller;
 use App\Models\Product;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
 class ProductController extends Controller
 {
-    private function generateThumbnail(array $images): ?string
+    private function getThumbnailSource(array $data): ?string
     {
-        if (empty($images)) {
+        if (!empty($data['thumbnail'])) {
+            return $data['thumbnail'];
+        }
+
+        if (!empty($data['images']) && is_array($data['images'])) {
+            return $data['images'][0] ?? null;
+        }
+
+        return null;
+    }
+
+    private function isGeneratedThumbnailPath(?string $thumbnail): bool
+    {
+        return is_string($thumbnail) && str_contains($thumbnail, '/storage/product-thumbnails/');
+    }
+
+    private function removeGeneratedThumbnail(?string $thumbnail): void
+    {
+        if (!$this->isGeneratedThumbnailPath($thumbnail)) {
+            return;
+        }
+
+        $relativePath = ltrim(str_replace('/storage/', '', $thumbnail), '/');
+
+        if ($relativePath !== '' && Storage::disk('public')->exists($relativePath)) {
+            Storage::disk('public')->delete($relativePath);
+        }
+    }
+
+    private function getBinaryImageContents(string $source): ?string
+    {
+        if (str_starts_with($source, 'data:image/')) {
+            $parts = explode(',', $source, 2);
+
+            if (count($parts) !== 2) {
+                return null;
+            }
+
+            return base64_decode($parts[1], true) ?: null;
+        }
+
+        if (str_starts_with($source, '/storage/')) {
+            $relativePath = ltrim(str_replace('/storage/', '', $source), '/');
+
+            if (Storage::disk('public')->exists($relativePath)) {
+                return Storage::disk('public')->get($relativePath);
+            }
+        }
+
+        if (filter_var($source, FILTER_VALIDATE_URL)) {
+            return @file_get_contents($source) ?: null;
+        }
+
+        if (is_file($source)) {
+            return file_get_contents($source) ?: null;
+        }
+
+        return null;
+    }
+
+    private function generateThumbnailImage(string $binaryContents): ?string
+    {
+        $sourceImage = @imagecreatefromstring($binaryContents);
+
+        if (!$sourceImage) {
             return null;
         }
-        return $images[0] ?? null;
+
+        $sourceWidth = imagesx($sourceImage);
+        $sourceHeight = imagesy($sourceImage);
+
+        if ($sourceWidth <= 0 || $sourceHeight <= 0) {
+            imagedestroy($sourceImage);
+            return null;
+        }
+
+        $targetWidth = 1200;
+        $targetHeight = 630;
+        $targetRatio = $targetWidth / $targetHeight;
+        $sourceRatio = $sourceWidth / $sourceHeight;
+
+        if ($sourceRatio > $targetRatio) {
+            $cropHeight = $sourceHeight;
+            $cropWidth = (int) round($sourceHeight * $targetRatio);
+            $srcX = (int) round(($sourceWidth - $cropWidth) / 2);
+            $srcY = 0;
+        } else {
+            $cropWidth = $sourceWidth;
+            $cropHeight = (int) round($sourceWidth / $targetRatio);
+            $srcX = 0;
+            $srcY = (int) round(($sourceHeight - $cropHeight) / 2);
+        }
+
+        $targetImage = imagecreatetruecolor($targetWidth, $targetHeight);
+        $background = imagecolorallocate($targetImage, 255, 255, 255);
+        imagefill($targetImage, 0, 0, $background);
+
+        imagecopyresampled(
+            $targetImage,
+            $sourceImage,
+            0,
+            0,
+            $srcX,
+            $srcY,
+            $targetWidth,
+            $targetHeight,
+            $cropWidth,
+            $cropHeight
+        );
+
+        ob_start();
+        imagejpeg($targetImage, null, 88);
+        $thumbnailBinary = ob_get_clean() ?: null;
+
+        imagedestroy($sourceImage);
+        imagedestroy($targetImage);
+
+        return $thumbnailBinary;
+    }
+
+    private function storeGeneratedThumbnail(array $data, ?Product $existingProduct = null): ?string
+    {
+        $source = $this->getThumbnailSource($data);
+
+        if (!$source) {
+            if ($existingProduct) {
+                $this->removeGeneratedThumbnail($existingProduct->thumbnail);
+            }
+
+            return null;
+        }
+
+        $binaryContents = $this->getBinaryImageContents($source);
+
+        if (!$binaryContents) {
+            Log::warning('Product thumbnail source could not be read', [
+                'product_id' => $existingProduct?->id,
+                'source_preview' => Str::limit($source, 80),
+            ]);
+
+            return $source;
+        }
+
+        $thumbnailBinary = $this->generateThumbnailImage($binaryContents);
+
+        if (!$thumbnailBinary) {
+            Log::warning('Product thumbnail could not be generated, keeping original source', [
+                'product_id' => $existingProduct?->id,
+            ]);
+
+            return $source;
+        }
+
+        if ($existingProduct) {
+            $this->removeGeneratedThumbnail($existingProduct->thumbnail);
+        }
+
+        $filename = 'product-thumbnails/' . ($existingProduct?->id ?? 'new') . '-' . Str::uuid() . '.jpg';
+        Storage::disk('public')->put($filename, $thumbnailBinary);
+
+        return '/storage/' . $filename;
     }
 
     private function prepareProductData(array $data): array
     {
-        if (isset($data['thumbnail']) && !empty($data['thumbnail'])) {
-            $data['thumbnail'] = $data['thumbnail'];
-        } elseif (isset($data['images']) && is_array($data['images']) && !empty($data['images'])) {
-            $data['thumbnail'] = $this->generateThumbnail($data['images']);
-        } else {
-            $data['thumbnail'] = null;
-        }
+        $data['thumbnail'] = $this->getThumbnailSource($data);
         return $data;
     }
     public function index(Request $request): JsonResponse
@@ -187,6 +340,11 @@ class ProductController extends Controller
 
         $product = Product::create($productData);
 
+        $generatedThumbnail = $this->storeGeneratedThumbnail($productData, $product);
+        if ($generatedThumbnail !== $product->thumbnail) {
+            $product->update(['thumbnail' => $generatedThumbnail]);
+        }
+
         \App\Models\Notification::send(
             $user->id,
             'new_product',
@@ -263,6 +421,12 @@ class ProductController extends Controller
 
         $product->update($data);
 
+        $refreshedProduct = $product->fresh();
+        $generatedThumbnail = $this->storeGeneratedThumbnail($refreshedProduct->toArray(), $refreshedProduct);
+        if ($generatedThumbnail !== $refreshedProduct->thumbnail) {
+            $refreshedProduct->update(['thumbnail' => $generatedThumbnail]);
+        }
+
         return response()->json([
             'message' => 'Producto actualizado',
             'product' => $product->fresh(),
@@ -278,6 +442,7 @@ class ProductController extends Controller
             return response()->json(['message' => 'No tienes permiso'], 403);
         }
 
+        $this->removeGeneratedThumbnail($product->thumbnail);
         $product->delete();
 
         return response()->json(['message' => 'Producto eliminado']);
