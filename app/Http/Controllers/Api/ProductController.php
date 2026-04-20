@@ -179,6 +179,17 @@ class ProductController extends Controller
     private function storeGeneratedThumbnail(array $data, ?Product $existingProduct = null): ?string
     {
         $source = $this->getThumbnailSource($data);
+        
+        Log::info('Thumbnail generation debug', [
+            'has_source' => !!$source,
+            'source_type' => $source ? (
+                str_starts_with($source, 'data:') ? 'base64' : 
+                str_starts_with($source, '/storage/') ? 'storage' :
+                str_starts_with($source, 'http') ? 'url' : 'unknown'
+            ) : 'null',
+            'source_preview' => $source ? Str::limit($source, 100) : null,
+            'existing_thumbnail' => $existingProduct?->thumbnail,
+        ]);
 
         if (!$source) {
             if ($existingProduct) {
