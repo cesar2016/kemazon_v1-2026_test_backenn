@@ -14,6 +14,46 @@ use Illuminate\Support\Str;
 
 class ProductController extends Controller
 {
+    private function currentRequestOrigin(): ?string
+    {
+        if (!request()) {
+            return null;
+        }
+
+        $forwardedProto = request()->headers->get('x-forwarded-proto');
+        $scheme = $forwardedProto ? trim(explode(',', $forwardedProto)[0]) : request()->getScheme();
+        $host = request()->headers->get('x-forwarded-host')
+            ? trim(explode(',', request()->headers->get('x-forwarded-host'))[0])
+            : request()->getHost();
+        $port = request()->headers->get('x-forwarded-port') ?: request()->getPort();
+
+        if (!$host) {
+            return null;
+        }
+
+        $origin = $scheme . '://' . $host;
+        $isStandardPort = ($scheme === 'http' && (int) $port === 80)
+            || ($scheme === 'https' && (int) $port === 443);
+
+        if ($port && !$isStandardPort && !str_contains($host, ':')) {
+            $origin .= ':' . $port;
+        }
+
+        return $origin;
+    }
+
+    private function buildAbsoluteStorageUrl(string $path): string
+    {
+        $relativePath = '/' . ltrim($path, '/');
+        $origin = $this->currentRequestOrigin();
+
+        if ($origin) {
+            return rtrim($origin, '/') . $relativePath;
+        }
+
+        return url($relativePath);
+    }
+
     private function getThumbnailSource(array $data): ?string
     {
         if (!empty($data['thumbnail'])) {
@@ -176,7 +216,7 @@ class ProductController extends Controller
         $filename = 'product-thumbnails/' . ($existingProduct?->id ?? 'new') . '-' . Str::uuid() . '.jpg';
         Storage::disk('public')->put($filename, $thumbnailBinary);
 
-        return url('/storage/' . $filename);
+        return $this->buildAbsoluteStorageUrl('/storage/' . $filename);
     }
 
     private function prepareProductData(array $data): array

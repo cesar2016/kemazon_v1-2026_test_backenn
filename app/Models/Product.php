@@ -8,8 +8,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-
-
 class Product extends Model
 {
     use HasFactory;
@@ -37,6 +35,86 @@ class Product extends Model
         'is_active' => 'boolean',
         'specifications' => 'array',
     ];
+
+    private static function currentRequestOrigin(): ?string
+    {
+        if (!request()) {
+            return null;
+        }
+
+        $forwardedProto = request()->headers->get('x-forwarded-proto');
+        $scheme = $forwardedProto ? trim(explode(',', $forwardedProto)[0]) : request()->getScheme();
+        $host = request()->headers->get('x-forwarded-host')
+            ? trim(explode(',', request()->headers->get('x-forwarded-host'))[0])
+            : request()->getHost();
+        $port = request()->headers->get('x-forwarded-port') ?: request()->getPort();
+
+        if (!$host) {
+            return null;
+        }
+
+        $origin = $scheme . '://' . $host;
+        $isStandardPort = ($scheme === 'http' && (int) $port === 80)
+            || ($scheme === 'https' && (int) $port === 443);
+
+        if ($port && !$isStandardPort && !str_contains($host, ':')) {
+            $origin .= ':' . $port;
+        }
+
+        return $origin;
+    }
+
+    private static function normalizeMediaUrl(?string $value): ?string
+    {
+        if (!$value) {
+            return $value;
+        }
+
+        if (str_starts_with($value, 'data:image/')) {
+            return $value;
+        }
+
+        $origin = self::currentRequestOrigin();
+        if (!$origin) {
+            return $value;
+        }
+
+        if (str_starts_with($value, '/')) {
+            return rtrim($origin, '/') . $value;
+        }
+
+        if (!preg_match('/^https?:\/\//i', $value)) {
+            return $value;
+        }
+
+        $mediaHost = parse_url($value, PHP_URL_HOST);
+        $mediaPort = parse_url($value, PHP_URL_PORT);
+        $requestHost = parse_url($origin, PHP_URL_HOST);
+        $requestPort = parse_url($origin, PHP_URL_PORT);
+        $requestScheme = parse_url($origin, PHP_URL_SCHEME);
+
+        if ($mediaHost && $requestHost && $mediaHost === $requestHost && (string) ($mediaPort ?? '') === (string) ($requestPort ?? '')) {
+            $updated = preg_replace('/^https?:\/\//i', $requestScheme . '://', $value);
+            return $updated ?: $value;
+        }
+
+        return $value;
+    }
+
+    public function getThumbnailAttribute($value): ?string
+    {
+        return self::normalizeMediaUrl($value);
+    }
+
+    public function getImagesAttribute($value): array
+    {
+        $decoded = is_array($value) ? $value : (json_decode($value ?? '[]', true) ?: []);
+
+        return array_map(
+            fn ($image) => is_string($image) ? self::normalizeMediaUrl($image) : $image,
+            $decoded
+        );
+    }
 
     public function user(): BelongsTo
     {
