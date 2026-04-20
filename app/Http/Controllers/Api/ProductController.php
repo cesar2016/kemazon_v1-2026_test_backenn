@@ -56,12 +56,23 @@ class ProductController extends Controller
 
     private function getThumbnailSource(array $data): ?string
     {
+        // Add debugging to see actual values
+        Log::info('getThumbnailSource called', [
+            'has_thumbnail_key' => array_key_exists('thumbnail', $data),
+            'has_images_key' => array_key_exists('images', $data),
+            'thumbnail_value' => $data['thumbnail'] ?? 'NOT_SET',
+            'images_type' => isset($data['images']) ? gettype($data['images']) : 'NOT_SET',
+            'images_value' => is_array($data['images'] ?? null) ? json_encode($data['images']) : ($data['images'] ?? 'NOT_ARRAY'),
+        ]);
+        
         if (!empty($data['thumbnail'])) {
             return $data['thumbnail'];
         }
 
         if (!empty($data['images']) && is_array($data['images'])) {
-            return $data['images'][0] ?? null;
+            $firstImage = $data['images'][0] ?? null;
+            Log::info('Using first image as thumbnail', ['first_image' => $firstImage]);
+            return $firstImage;
         }
 
         return null;
