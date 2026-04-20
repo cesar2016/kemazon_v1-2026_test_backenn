@@ -176,7 +176,7 @@ class ProductController extends Controller
         $filename = 'product-thumbnails/' . ($existingProduct?->id ?? 'new') . '-' . Str::uuid() . '.jpg';
         Storage::disk('public')->put($filename, $thumbnailBinary);
 
-        return '/storage/' . $filename;
+        return url('/storage/' . $filename);
     }
 
     private function prepareProductData(array $data): array
@@ -377,6 +377,7 @@ class ProductController extends Controller
                 'stock' => 'sometimes|integer|min:0',
                 'images' => 'nullable|array',
                 'images.*' => 'string',
+                'thumbnail' => 'nullable|string',
                 'specifications' => 'nullable|array',
                 'is_active' => 'sometimes|boolean',
             ];
@@ -401,6 +402,7 @@ class ProductController extends Controller
                 'description' => 'nullable|string',
                 'images' => 'nullable|array',
                 'images.*' => 'string',
+                'thumbnail' => 'nullable|string',
                 'specifications' => 'nullable|array',
                 'is_active' => 'sometimes|boolean',
             ];
