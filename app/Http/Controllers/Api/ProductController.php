@@ -455,6 +455,16 @@ class ProductController extends Controller
         }
 
         $data = $request->except(['user_id', 'slug', 'sku', 'type', 'price', 'stock']);
+        
+        // Debug: log incoming data
+        Log::info('Product update incoming', [
+            'id' => $id,
+            'has_images' => $request->has('images'),
+            'images_count' => $request->has('images') ? count($request->images) : 0,
+            'has_thumbnail' => $request->has('thumbnail'),
+            'thumbnail_value' => $request->thumbnail ?? 'not set',
+        ]);
+        
         $data = $this->prepareProductData($data);
 
         if ($request->has('name') && $request->name !== $product->name) {
