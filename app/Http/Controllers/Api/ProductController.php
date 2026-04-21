@@ -56,23 +56,12 @@ class ProductController extends Controller
 
     private function getThumbnailSource(array $data): ?string
     {
-        // Add debugging to see actual values
-        Log::info('getThumbnailSource called', [
-            'has_thumbnail_key' => array_key_exists('thumbnail', $data),
-            'has_images_key' => array_key_exists('images', $data),
-            'thumbnail_value' => $data['thumbnail'] ?? 'NOT_SET',
-            'images_type' => isset($data['images']) ? gettype($data['images']) : 'NOT_SET',
-            'images_value' => is_array($data['images'] ?? null) ? json_encode($data['images']) : ($data['images'] ?? 'NOT_ARRAY'),
-        ]);
-        
         if (!empty($data['thumbnail'])) {
             return $data['thumbnail'];
         }
 
         if (!empty($data['images']) && is_array($data['images'])) {
-            $firstImage = $data['images'][0] ?? null;
-            Log::info('Using first image as thumbnail', ['first_image' => $firstImage]);
-            return $firstImage;
+            return $data['images'][0] ?? null;
         }
 
         return null;
@@ -190,17 +179,6 @@ class ProductController extends Controller
     private function storeGeneratedThumbnail(array $data, ?Product $existingProduct = null): ?string
     {
         $source = $this->getThumbnailSource($data);
-        
-        Log::info('Thumbnail generation debug', [
-            'has_source' => !!$source,
-            'source_type' => $source ? (
-                str_starts_with($source, 'data:') ? 'base64' : 
-                str_starts_with($source, '/storage/') ? 'storage' :
-                str_starts_with($source, 'http') ? 'url' : 'unknown'
-            ) : 'null',
-            'source_preview' => $source ? Str::limit($source, 100) : null,
-            'existing_thumbnail' => $existingProduct?->thumbnail,
-        ]);
 
         if (!$source) {
             if ($existingProduct) {
@@ -477,16 +455,6 @@ class ProductController extends Controller
         }
 
         $data = $request->except(['user_id', 'slug', 'sku', 'type', 'price', 'stock']);
-        
-        // Debug: log incoming data
-        Log::info('Product update incoming', [
-            'id' => $id,
-            'has_images' => $request->has('images'),
-            'images_count' => $request->has('images') ? count($request->images) : 0,
-            'has_thumbnail' => $request->has('thumbnail'),
-            'thumbnail_value' => $request->thumbnail ?? 'not set',
-        ]);
-        
         $data = $this->prepareProductData($data);
 
         if ($request->has('name') && $request->name !== $product->name) {
