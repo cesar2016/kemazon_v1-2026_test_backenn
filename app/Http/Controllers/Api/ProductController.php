@@ -221,8 +221,47 @@ class ProductController extends Controller
 
     private function prepareProductData(array $data): array
     {
+        // Save base64 images to storage and replace with URLs
+        if (!empty($data['images']) && is_array($data['images'])) {
+            $savedImages = [];
+            foreach ($data['images'] as $img) {
+                if (!empty($img) && str_starts_with($img, 'data:image/')) {
+                    $savedUrl = $this->saveBase64Image($img);
+                    if ($savedUrl) {
+                        $savedImages[] = $savedUrl;
+                    }
+                } else {
+                    $savedImages[] = $img;
+                }
+            }
+            $data['images'] = $savedImages;
+        }
+        
         $data['thumbnail'] = $this->getThumbnailSource($data);
         return $data;
+    }
+    
+    private function saveBase64Image(string $base64Image): ?string
+    {
+        try {
+            $parts = explode(',', $base64Image, 2);
+            if (count($parts) !== 2) {
+                return null;
+            }
+            
+            $binary = base64_decode($parts[1], true);
+            if (!$binary) {
+                return null;
+            }
+            
+            $filename = 'product-images/' . Str::uuid() . '.jpg';
+            Storage::disk('public')->put($filename, $binary);
+            
+            return '/storage/' . $filename;
+        } catch (\Exception $e) {
+            Log::warning('Failed to save base64 image', ['error' => $e->getMessage()]);
+            return null;
+        }
     }
     public function index(Request $request): JsonResponse
     {
