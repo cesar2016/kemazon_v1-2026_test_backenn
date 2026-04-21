@@ -221,20 +221,12 @@ class ProductController extends Controller
 
     private function prepareProductData(array $data): array
     {
-        // Save base64 images to storage and replace with URLs
-        if (!empty($data['images']) && is_array($data['images'])) {
-            $savedImages = [];
-            foreach ($data['images'] as $img) {
-                if (!empty($img) && str_starts_with($img, 'data:image/')) {
-                    $savedUrl = $this->saveBase64Image($img);
-                    if ($savedUrl) {
-                        $savedImages[] = $savedUrl;
-                    }
-                } else {
-                    $savedImages[] = $img;
-                }
+        // Save base64 thumbnail to storage and replace with URL
+        if (!empty($data['thumbnail']) && str_starts_with($data['thumbnail'], 'data:image/')) {
+            $savedUrl = $this->saveBase64Image($data['thumbnail']);
+            if ($savedUrl) {
+                $data['thumbnail'] = $savedUrl;
             }
-            $data['images'] = $savedImages;
         }
         
         $data['thumbnail'] = $this->getThumbnailSource($data);
