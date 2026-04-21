@@ -463,8 +463,15 @@ class ProductController extends Controller
 
         $product->update($data);
 
+        // Only generate thumbnail if not explicitly provided
         $refreshedProduct = $product->fresh();
-        $generatedThumbnail = $this->storeGeneratedThumbnail($refreshedProduct->toArray(), $refreshedProduct);
+        if (!empty($data['thumbnail'])) {
+            // Use explicitly provided thumbnail, no need to generate
+            $generatedThumbnail = $data['thumbnail'];
+        } else {
+            $generatedThumbnail = $this->storeGeneratedThumbnail($refreshedProduct->toArray(), $refreshedProduct);
+        }
+        
         if ($generatedThumbnail !== $refreshedProduct->thumbnail) {
             $refreshedProduct->update(['thumbnail' => $generatedThumbnail]);
         }
