@@ -415,11 +415,6 @@ class ProductController extends Controller
 
         $product = Product::create($productData);
 
-        $generatedThumbnail = $this->storeGeneratedThumbnail($productData, $product);
-        if ($generatedThumbnail !== $product->thumbnail) {
-            $product->update(['thumbnail' => $generatedThumbnail]);
-        }
-
         \App\Models\Notification::send(
             $user->id,
             'new_product',
@@ -497,19 +492,6 @@ class ProductController extends Controller
         }
 
         $product->update($data);
-
-        // Only generate thumbnail if not explicitly provided
-        $refreshedProduct = $product->fresh();
-        if (!empty($data['thumbnail'])) {
-            // Use explicitly provided thumbnail, no need to generate
-            $generatedThumbnail = $data['thumbnail'];
-        } else {
-            $generatedThumbnail = $this->storeGeneratedThumbnail($refreshedProduct->toArray(), $refreshedProduct);
-        }
-        
-        if ($generatedThumbnail !== $refreshedProduct->thumbnail) {
-            $refreshedProduct->update(['thumbnail' => $generatedThumbnail]);
-        }
 
         return response()->json([
             'message' => 'Producto actualizado',
