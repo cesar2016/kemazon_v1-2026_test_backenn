@@ -246,10 +246,53 @@ class ProductController extends Controller
                 return null;
             }
             
-            $filename = 'product-images/' . Str::uuid() . '.jpg';
-            Storage::disk('public')->put($filename, $binary);
+            // Create image resource from binary data
+            $image = imagecreatefromstring($binary);
+            if (!$image) {
+                return null;
+            }
             
-            return '/storage/' . $filename;
+            // Get original dimensions
+            $width = imagesx($image);
+            $height = imagesy($image);
+            
+            // Calculate new dimensions (max 600px, maintain aspect ratio)
+            $maxSize = 600;
+            if ($width > $maxSize || $height > $maxSize) {
+                if ($width > $height) {
+                    $newWidth = $maxSize;
+                    $newHeight = (int) ($height * ($maxSize / $width));
+                } else {
+                    $newHeight = $maxSize;
+                    $newWidth = (int) ($width * ($maxSize / $height));
+                }
+                
+                // Create resized image
+                $resized = imagecreatetruecolor($newWidth, $newHeight);
+                
+                // Fill white background for transparent images
+                $white = imagecolorallocate($resized, 255, 255, 255);
+                imagefill($resized, 0, 0, $white);
+                
+                // Resize with high quality
+                imagecopyresampled($resized, $image, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+                imagedestroy($image);
+                $image = $resized;
+            }
+            
+            // Compress and save as JPEG
+            $filename = 'product-thumbnails/' . Str::uuid() . '.jpg';
+            ob_start();
+            imagejpeg($image, null, 85);
+            $compressed = ob_get_clean();
+            imagedestroy($image);
+            
+            if ($compressed) {
+                Storage::disk('public')->put($filename, $compressed);
+                return '/storage/' . $filename;
+            }
+            
+            return null;
         } catch (\Exception $e) {
             Log::warning('Failed to save base64 image', ['error' => $e->getMessage()]);
             return null;
