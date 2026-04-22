@@ -221,9 +221,13 @@ class ProductController extends Controller
 
     private function prepareProductData(array $data): array
     {
+        Log::info('prepareProductData called', ['thumbnail' => $data['thumbnail'] ?? 'none', 'hasThumbnail' => isset($data['thumbnail'])]);
+        
         // Save base64 thumbnail to storage and replace with URL
         if (!empty($data['thumbnail']) && str_starts_with($data['thumbnail'], 'data:image/')) {
+            Log::info('Saving base64 thumbnail to file');
             $savedUrl = $this->saveBase64Image($data['thumbnail']);
+            Log::info('Saved URL: ' . $savedUrl);
             if ($savedUrl) {
                 $data['thumbnail'] = $savedUrl;
             }
