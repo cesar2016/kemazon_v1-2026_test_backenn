@@ -489,14 +489,35 @@ class ProductController extends Controller
         }
 
         $data = $request->except(['user_id', 'slug', 'sku', 'type', 'price', 'stock']);
+        
+        Log::info('[ProductController@update] Raw data received', [
+            'keys' => array_keys($data),
+            'thumbnail' => $data['thumbnail'] ?? 'NOT_IN_DATA',
+        ]);
+        
         $data = $this->prepareProductData($data);
-
+        
+        Log::info('[ProductController@update] After prepareProductData', [
+            'thumbnail' => $data['thumbnail'] ?? 'NOT_IN_DATA',
+        ]);
+        
         if ($request->has('name') && $request->name !== $product->name) {
             $data['slug'] = Str::slug($request->name) . '-' . uniqid();
         }
-
+        
+        Log::info('[ProductController@update] Before update', [
+            'product_id' => $id,
+            'thumbnail' => $data['thumbnail'] ?? 'NOT_IN_DATA',
+            'current_thumbnail' => $product->thumbnail,
+        ]);
+        
         $product->update($data);
-
+        
+        Log::info('[ProductController@update] After update', [
+            'product_id' => $id,
+            'new_thumbnail' => $product->fresh()->thumbnail,
+        ]);
+        
         return response()->json([
             'message' => 'Producto actualizado',
             'product' => $product->fresh(),
