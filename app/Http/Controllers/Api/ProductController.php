@@ -246,10 +246,21 @@ class ProductController extends Controller
                 return null;
             }
             
+            // Check if GD extension is loaded
+            if (!extension_loaded('gd')) {
+                // Fallback: save without optimization
+                $filename = 'product-thumbnails/' . Str::uuid() . '.jpg';
+                Storage::disk('public')->put($filename, $binary);
+                return '/storage/' . $filename;
+            }
+            
             // Create image resource from binary data
             $image = imagecreatefromstring($binary);
             if (!$image) {
-                return null;
+                // Fallback: save without optimization
+                $filename = 'product-thumbnails/' . Str::uuid() . '.jpg';
+                Storage::disk('public')->put($filename, $binary);
+                return '/storage/' . $filename;
             }
             
             // Get original dimensions
@@ -258,6 +269,9 @@ class ProductController extends Controller
             
             // Calculate new dimensions (max 600px, maintain aspect ratio)
             $maxSize = 600;
+            $newWidth = $width;
+            $newHeight = $height;
+            
             if ($width > $maxSize || $height > $maxSize) {
                 if ($width > $height) {
                     $newWidth = $maxSize;
@@ -270,29 +284,32 @@ class ProductController extends Controller
                 // Create resized image
                 $resized = imagecreatetruecolor($newWidth, $newHeight);
                 
-                // Fill white background for transparent images
+                // Fill white background
                 $white = imagecolorallocate($resized, 255, 255, 255);
                 imagefill($resized, 0, 0, $white);
                 
-                // Resize with high quality
+                // Resize
                 imagecopyresampled($resized, $image, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
                 imagedestroy($image);
                 $image = $resized;
             }
             
-            // Compress and save as JPEG
+            // Save as JPEG
             $filename = 'product-thumbnails/' . Str::uuid() . '.jpg';
             ob_start();
-            imagejpeg($image, null, 85);
+            imagejpeg($image, null, 80);
             $compressed = ob_get_clean();
             imagedestroy($image);
             
-            if ($compressed) {
+            if ($compressed && strlen($compressed) > 0) {
                 Storage::disk('public')->put($filename, $compressed);
                 return '/storage/' . $filename;
             }
             
-            return null;
+            // Last fallback
+            $filename = 'product-thumbnails/' . Str::uuid() . '.jpg';
+            Storage::disk('public')->put($filename, $binary);
+            return '/storage/' . $filename;
         } catch (\Exception $e) {
             Log::warning('Failed to save base64 image', ['error' => $e->getMessage()]);
             return null;
