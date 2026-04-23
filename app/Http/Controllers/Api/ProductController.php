@@ -528,7 +528,7 @@ class ProductController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $data = $request->except(['user_id', 'slug', 'sku', 'type', 'price', 'stock']);
+        $data = $request->except(['user_id', 'slug', 'sku', 'type']);
         $data = $this->prepareProductData($data);
 
         if ($request->has('name') && $request->name !== $product->name) {
