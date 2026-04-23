@@ -9,7 +9,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
-use Tymon\JWTAuth\Facades\JWTAuth;
 
 class AuthController extends Controller
 {
@@ -35,7 +34,7 @@ class AuthController extends Controller
             'is_admin' => false,
         ]);
 
-        $token = JWTAuth::fromUser($user);
+        $token = auth('api')->login($user);
 
         return response()->json([
             'message' => 'Usuario registrado exitosamente',
@@ -58,7 +57,7 @@ class AuthController extends Controller
 
         $credentials = $request->only('email', 'password');
 
-        if (!$token = JWTAuth::attempt($credentials)) {
+        if (!$token = auth('api')->attempt($credentials)) {
             return response()->json(['message' => 'Credenciales inválidas'], 401);
         }
 
@@ -75,14 +74,14 @@ class AuthController extends Controller
 
     public function logout(): JsonResponse
     {
-        JWTAuth::invalidate(JWTAuth::getToken());
+        auth('api')->invalidate(auth('api')->getToken());
 
         return response()->json(['message' => 'Sesión cerrada exitosamente']);
     }
 
     public function refresh(): JsonResponse
     {
-        $token = JWTAuth::refresh(JWTAuth::getToken());
+        $token = auth('api')->refresh(auth('api')->getToken());
 
         return response()->json([
             'token' => $token,
