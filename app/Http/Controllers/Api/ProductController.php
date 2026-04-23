@@ -459,9 +459,13 @@ class ProductController extends Controller
 
         $product = Product::create($productData);
 
-        $generatedThumbnail = $this->storeGeneratedThumbnail($productData, $product);
-        if ($generatedThumbnail !== $product->thumbnail) {
-            $product->update(['thumbnail' => $generatedThumbnail]);
+        try {
+            $generatedThumbnail = $this->storeGeneratedThumbnail($productData, $product);
+            if ($generatedThumbnail !== $product->thumbnail) {
+                $product->update(['thumbnail' => $generatedThumbnail]);
+            }
+        } catch (\Exception $e) {
+            Log::warning('Failed to generate thumbnail during product creation: ' . $e->getMessage());
         }
 
         \App\Models\Notification::send(
