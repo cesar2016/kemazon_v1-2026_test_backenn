@@ -15,6 +15,8 @@ class AuthenticateApi
 {
     public function handle(Request $request, Closure $next, ...$guards): Response
     {
+        Log::info('[AuthMiddleware] Incoming request: ' . $request->method() . ' ' . $request->path());
+        
         try {
             $user = JWTAuth::parseToken()->authenticate();
 

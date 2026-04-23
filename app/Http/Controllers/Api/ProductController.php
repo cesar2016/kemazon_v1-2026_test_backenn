@@ -410,8 +410,11 @@ class ProductController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        Log::info('[ProductController@store] Starting...');
+        
         try {
             $user = auth()->user();
+            Log::info('[ProductController@store] User authenticated: ' . $user->id);
 
             if (!$user->is_seller) {
                 return response()->json(['message' => 'Debes ser vendedor para crear productos'], 403);
