@@ -410,76 +410,81 @@ class ProductController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $user = auth()->user();
-
-        if (!$user->is_seller) {
-            return response()->json(['message' => 'Debes ser vendedor para crear productos'], 403);
-        }
-
-        $rules = [
-            'name' => 'required|string|max:255',
-            'category_id' => 'nullable|exists:categories,id',
-            'description' => 'nullable|string',
-            'images' => 'nullable|array',
-            'images.*' => 'string',
-            'thumbnail' => 'nullable|string',
-            'type' => 'required|in:direct,auction',
-            'specifications' => 'nullable|array',
-        ];
-
-        if ($request->type === 'direct') {
-            $rules['price'] = 'required|numeric|min:0';
-            $rules['stock'] = 'required|integer|min:0';
-        } else {
-            $rules['price'] = 'nullable|numeric|min:0';
-            $rules['stock'] = 'nullable|integer|min:0';
-        }
-
-        $validator = Validator::make($request->all(), $rules);
-
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-
-        $productData = $this->prepareProductData([
-            'user_id' => $user->id,
-            'name' => $request->name,
-            'slug' => Str::slug($request->name) . '-' . uniqid(),
-            'category_id' => $request->category_id,
-            'description' => $request->description,
-            'price' => $request->type === 'direct' ? $request->price : 0,
-            'stock' => $request->type === 'direct' ? $request->stock : 0,
-            'sku' => 'KMA-' . strtoupper(Str::random(8)),
-            'images' => $request->images ?? [],
-            'thumbnail' => $request->thumbnail ?? null,
-            'type' => $request->type,
-            'specifications' => $request->specifications,
-            'is_active' => true,
-        ]);
-
-        $product = Product::create($productData);
-
         try {
-            $generatedThumbnail = $this->storeGeneratedThumbnail($productData, $product);
-            if ($generatedThumbnail !== $product->thumbnail) {
-                $product->update(['thumbnail' => $generatedThumbnail]);
+            $user = auth()->user();
+
+            if (!$user->is_seller) {
+                return response()->json(['message' => 'Debes ser vendedor para crear productos'], 403);
             }
+
+            $rules = [
+                'name' => 'required|string|max:255',
+                'category_id' => 'nullable|exists:categories,id',
+                'description' => 'nullable|string',
+                'images' => 'nullable|array',
+                'images.*' => 'string',
+                'thumbnail' => 'nullable|string',
+                'type' => 'required|in:direct,auction',
+                'specifications' => 'nullable|array',
+            ];
+
+            if ($request->type === 'direct') {
+                $rules['price'] = 'required|numeric|min:0';
+                $rules['stock'] = 'required|integer|min:0';
+            } else {
+                $rules['price'] = 'nullable|numeric|min:0';
+                $rules['stock'] = 'nullable|integer|min:0';
+            }
+
+            $validator = Validator::make($request->all(), $rules);
+
+            if ($validator->fails()) {
+                return response()->json(['errors' => $validator->errors()], 422);
+            }
+
+            $productData = $this->prepareProductData([
+                'user_id' => $user->id,
+                'name' => $request->name,
+                'slug' => Str::slug($request->name) . '-' . uniqid(),
+                'category_id' => $request->category_id,
+                'description' => $request->description,
+                'price' => $request->type === 'direct' ? $request->price : 0,
+                'stock' => $request->type === 'direct' ? $request->stock : 0,
+                'sku' => 'KMA-' . strtoupper(Str::random(8)),
+                'images' => $request->images ?? [],
+                'thumbnail' => $request->thumbnail ?? null,
+                'type' => $request->type,
+                'specifications' => $request->specifications,
+                'is_active' => true,
+            ]);
+
+            $product = Product::create($productData);
+
+            try {
+                $generatedThumbnail = $this->storeGeneratedThumbnail($productData, $product);
+                if ($generatedThumbnail !== $product->thumbnail) {
+                    $product->update(['thumbnail' => $generatedThumbnail]);
+                }
+            } catch (\Exception $e) {
+                Log::warning('Failed to generate thumbnail during product creation: ' . $e->getMessage());
+            }
+
+            \App\Models\Notification::send(
+                $user->id,
+                'new_product',
+                '¡Producto publicado!',
+                "Tu producto '{$product->name}' ya está disponible para la venta.",
+                ['product_id' => $product->id]
+            );
+
+            return response()->json([
+                'message' => 'Producto creado',
+                'product' => $product,
+            ], 201);
         } catch (\Exception $e) {
-            Log::warning('Failed to generate thumbnail during product creation: ' . $e->getMessage());
+            Log::error('Error in ProductController@store: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
+            return response()->json(['message' => 'Error interno del servidor'], 500);
         }
-
-        \App\Models\Notification::send(
-            $user->id,
-            'new_product',
-            '¡Producto publicado!',
-            "Tu producto '{$product->name}' ya está disponible para la venta.",
-            ['product_id' => $product->id]
-        );
-
-        return response()->json([
-            'message' => 'Producto creado',
-            'product' => $product,
-        ], 201);
     }
 
     public function update(Request $request, int $id): JsonResponse
