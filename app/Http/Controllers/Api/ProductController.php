@@ -221,23 +221,15 @@ class ProductController extends Controller
 
     private function prepareProductData(array $data): array
     {
-        Log::info('prepareProductData called', ['thumbnail' => $data['thumbnail'] ?? 'none', 'hasThumbnail' => isset($data['thumbnail'])]);
-        
         // Save base64 thumbnail to storage and replace with URL
         if (!empty($data['thumbnail']) && str_starts_with($data['thumbnail'], 'data:image/')) {
-            Log::info('Saving base64 thumbnail to file');
             $savedUrl = $this->saveBase64Image($data['thumbnail']);
-            Log::info('Saved URL: ' . $savedUrl);
             if ($savedUrl) {
                 $data['thumbnail'] = $savedUrl;
             }
         }
         
-        // Only get thumbnail from images if no thumbnail is set
-        if (empty($data['thumbnail']) && !empty($data['images']) && is_array($data['images'])) {
-            $data['thumbnail'] = $data['images'][0] ?? null;
-        }
-        
+        $data['thumbnail'] = $this->getThumbnailSource($data);
         return $data;
     }
     
@@ -254,10 +246,53 @@ class ProductController extends Controller
                 return null;
             }
             
-            $filename = 'product-thumbnails/' . Str::uuid() . '.jpg';
-            Storage::disk('public')->put($filename, $binary);
+            // Create image resource from binary data
+            $image = imagecreatefromstring($binary);
+            if (!$image) {
+                return null;
+            }
             
-            return '/storage/' . $filename;
+            // Get original dimensions
+            $width = imagesx($image);
+            $height = imagesy($image);
+            
+            // Calculate new dimensions (max 600px, maintain aspect ratio)
+            $maxSize = 600;
+            if ($width > $maxSize || $height > $maxSize) {
+                if ($width > $height) {
+                    $newWidth = $maxSize;
+                    $newHeight = (int) ($height * ($maxSize / $width));
+                } else {
+                    $newHeight = $maxSize;
+                    $newWidth = (int) ($width * ($maxSize / $height));
+                }
+                
+                // Create resized image
+                $resized = imagecreatetruecolor($newWidth, $newHeight);
+                
+                // Fill white background for transparent images
+                $white = imagecolorallocate($resized, 255, 255, 255);
+                imagefill($resized, 0, 0, $white);
+                
+                // Resize with high quality
+                imagecopyresampled($resized, $image, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+                imagedestroy($image);
+                $image = $resized;
+            }
+            
+            // Compress and save as JPEG
+            $filename = 'product-thumbnails/' . Str::uuid() . '.jpg';
+            ob_start();
+            imagejpeg($image, null, 85);
+            $compressed = ob_get_clean();
+            imagedestroy($image);
+            
+            if ($compressed) {
+                Storage::disk('public')->put($filename, $compressed);
+                return '/storage/' . $filename;
+            }
+            
+            return null;
         } catch (\Exception $e) {
             Log::warning('Failed to save base64 image', ['error' => $e->getMessage()]);
             return null;
@@ -419,6 +454,11 @@ class ProductController extends Controller
 
         $product = Product::create($productData);
 
+        $generatedThumbnail = $this->storeGeneratedThumbnail($productData, $product);
+        if ($generatedThumbnail !== $product->thumbnail) {
+            $product->update(['thumbnail' => $generatedThumbnail]);
+        }
+
         \App\Models\Notification::send(
             $user->id,
             'new_product',
@@ -489,35 +529,27 @@ class ProductController extends Controller
         }
 
         $data = $request->except(['user_id', 'slug', 'sku', 'type', 'price', 'stock']);
-        
-        Log::info('[ProductController@update] Raw data received', [
-            'keys' => array_keys($data),
-            'thumbnail' => $data['thumbnail'] ?? 'NOT_IN_DATA',
-        ]);
-        
         $data = $this->prepareProductData($data);
-        
-        Log::info('[ProductController@update] After prepareProductData', [
-            'thumbnail' => $data['thumbnail'] ?? 'NOT_IN_DATA',
-        ]);
-        
+
         if ($request->has('name') && $request->name !== $product->name) {
             $data['slug'] = Str::slug($request->name) . '-' . uniqid();
         }
-        
-        Log::info('[ProductController@update] Before update', [
-            'product_id' => $id,
-            'thumbnail' => $data['thumbnail'] ?? 'NOT_IN_DATA',
-            'current_thumbnail' => $product->thumbnail,
-        ]);
-        
+
         $product->update($data);
+
+        // Only generate thumbnail if not explicitly provided
+        $refreshedProduct = $product->fresh();
+        if (!empty($data['thumbnail'])) {
+            // Use explicitly provided thumbnail, no need to generate
+            $generatedThumbnail = $data['thumbnail'];
+        } else {
+            $generatedThumbnail = $this->storeGeneratedThumbnail($refreshedProduct->toArray(), $refreshedProduct);
+        }
         
-        Log::info('[ProductController@update] After update', [
-            'product_id' => $id,
-            'new_thumbnail' => $product->fresh()->thumbnail,
-        ]);
-        
+        if ($generatedThumbnail !== $refreshedProduct->thumbnail) {
+            $refreshedProduct->update(['thumbnail' => $generatedThumbnail]);
+        }
+
         return response()->json([
             'message' => 'Producto actualizado',
             'product' => $product->fresh(),

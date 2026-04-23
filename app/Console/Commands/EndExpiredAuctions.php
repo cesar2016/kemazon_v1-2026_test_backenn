@@ -30,4 +30,9 @@ class EndExpiredAuctions extends Command
 
         return Command::SUCCESS;
     }
+
+        $this->info("{$expiredAuctions->count()} subastas finalizadas.");
+
+        return Command::SUCCESS;
+    }
 }
