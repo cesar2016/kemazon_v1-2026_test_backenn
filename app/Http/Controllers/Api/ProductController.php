@@ -535,35 +535,25 @@ class ProductController extends Controller
 
         $data = $request->except(['user_id', 'slug', 'sku', 'type']);
         
-        \Illuminate\Support\Facades\Log::info('[UPDATE] Request all keys: ' . implode(',', array_keys($request->all())));
-        \Illuminate\Support\Facades\Log::info('[UPDATE] Data before prepare: ' . json_encode($data));
+        // DEBUG: Return what we received
+        $debugInfo = [
+            'received_keys' => array_keys($request->all()),
+            'received_data' => $request->all(),
+            'data_after_except' => $data,
+        ];
         
         $data = $this->prepareProductData($data);
-
-        if ($request->has('name') && $request->name !== $product->name) {
-            $data['slug'] = Str::slug($request->name) . '-' . uniqid();
-        }
-
+        
+        $debugInfo['data_after_prepare'] = $data;
+        
         $product->update($data);
         
-        \Illuminate\Support\Facades\Log::info('[UPDATE] After update, product: ' . json_encode($product->fresh()->toArray()));
-        
-        // Only generate thumbnail if not explicitly provided
-        $refreshedProduct = $product->fresh();
-        if (!empty($data['thumbnail'])) {
-            // Use explicitly provided thumbnail, no need to generate
-            $generatedThumbnail = $data['thumbnail'];
-        } else {
-            $generatedThumbnail = $this->storeGeneratedThumbnail($refreshedProduct->toArray(), $refreshedProduct);
-        }
-        
-        if ($generatedThumbnail !== $refreshedProduct->thumbnail) {
-            $refreshedProduct->update(['thumbnail' => $generatedThumbnail]);
-        }
+        $debugInfo['product_after_update'] = $product->fresh()->toArray();
 
         return response()->json([
             'message' => 'Producto actualizado',
             'product' => $product->fresh(),
+            'debug' => $debugInfo,
         ]);
     }
 
