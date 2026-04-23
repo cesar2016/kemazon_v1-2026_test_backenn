@@ -534,6 +534,10 @@ class ProductController extends Controller
         }
 
         $data = $request->except(['user_id', 'slug', 'sku', 'type']);
+        
+        \Illuminate\Support\Facades\Log::info('[UPDATE] Request all keys: ' . implode(',', array_keys($request->all())));
+        \Illuminate\Support\Facades\Log::info('[UPDATE] Data before prepare: ' . json_encode($data));
+        
         $data = $this->prepareProductData($data);
 
         if ($request->has('name') && $request->name !== $product->name) {
@@ -541,7 +545,9 @@ class ProductController extends Controller
         }
 
         $product->update($data);
-
+        
+        \Illuminate\Support\Facades\Log::info('[UPDATE] After update, product: ' . json_encode($product->fresh()->toArray()));
+        
         // Only generate thumbnail if not explicitly provided
         $refreshedProduct = $product->fresh();
         if (!empty($data['thumbnail'])) {
