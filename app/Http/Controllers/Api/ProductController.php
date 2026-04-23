@@ -548,6 +548,11 @@ class ProductController extends Controller
         
         $product->update($data);
         
+        $generatedThumbnail = $this->storeGeneratedThumbnail($data, $product);
+        if ($generatedThumbnail !== $product->thumbnail) {
+            $product->update(['thumbnail' => $generatedThumbnail]);
+        }
+        
         $debugInfo['product_after_update'] = $product->fresh()->toArray();
 
         return response()->json([
