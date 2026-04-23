@@ -227,9 +227,14 @@ class ProductController extends Controller
             if ($savedUrl) {
                 $data['thumbnail'] = $savedUrl;
             }
+            return $data;
         }
         
-        $data['thumbnail'] = $this->getThumbnailSource($data);
+        // Only get thumbnail from images if no thumbnail is set at all
+        if (empty($data['thumbnail']) && !empty($data['images']) && is_array($data['images'])) {
+            $data['thumbnail'] = $data['images'][0] ?? null;
+        }
+        
         return $data;
     }
     
