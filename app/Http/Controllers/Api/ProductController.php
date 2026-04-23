@@ -535,24 +535,39 @@ class ProductController extends Controller
 
         $data = $request->except(['user_id', 'slug', 'sku', 'type']);
         
+        Log::info('[UPDATE PRODUCT] Raw data keys: ' . implode(',', array_keys($data)));
+        Log::info('[UPDATE PRODUCT] thumbnail in request: ' . ($data['thumbnail'] ?? 'NOT SET'));
+        Log::info('[UPDATE PRODUCT] images count: ' . (isset($data['images']) ? count($data['images']) : 0));
+        
         $data = $this->prepareProductData($data);
+        
+        Log::info('[UPDATE PRODUCT] After prepareProductData, thumbnail: ' . ($data['thumbnail'] ?? 'NOT SET'));
         
         $product->update($data);
         
         $newThumbnail = $data['thumbnail'] ?? null;
         
+        Log::info('[UPDATE PRODUCT] Current thumbnail in DB: ' . ($product->thumbnail ?? 'NOT SET'));
+        Log::info('[UPDATE PRODUCT] New thumbnail to set: ' . ($newThumbnail ?? 'NOT SET'));
+        Log::info('[UPDATE PRODUCT] Are they different? ' . ($newThumbnail !== $product->thumbnail ? 'YES' : 'NO'));
+        
         if ($newThumbnail && $newThumbnail !== $product->thumbnail) {
+            Log::info('[UPDATE PRODUCT] Updating thumbnail to: ' . $newThumbnail);
             $product->update(['thumbnail' => $newThumbnail]);
         } elseif (!$newThumbnail && !empty($data['images'])) {
             $newThumbnail = $data['images'][0];
             if ($newThumbnail !== $product->thumbnail) {
+                Log::info('[UPDATE PRODUCT] Using first image as thumbnail: ' . $newThumbnail);
                 $product->update(['thumbnail' => $newThumbnail]);
             }
         }
         
+        $updatedProduct = $product->fresh();
+        Log::info('[UPDATE PRODUCT] Final thumbnail in DB: ' . ($updatedProduct->thumbnail ?? 'NOT SET'));
+        
         return response()->json([
             'message' => 'Producto actualizado',
-            'product' => $product->fresh(),
+            'product' => $updatedProduct,
         ]);
     }
 
