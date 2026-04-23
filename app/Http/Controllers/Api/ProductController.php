@@ -535,30 +535,24 @@ class ProductController extends Controller
 
         $data = $request->except(['user_id', 'slug', 'sku', 'type']);
         
-        // DEBUG: Return what we received
-        $debugInfo = [
-            'received_keys' => array_keys($request->all()),
-            'received_data' => $request->all(),
-            'data_after_except' => $data,
-        ];
-        
         $data = $this->prepareProductData($data);
-        
-        $debugInfo['data_after_prepare'] = $data;
         
         $product->update($data);
         
-        $generatedThumbnail = $this->storeGeneratedThumbnail($data, $product);
-        if ($generatedThumbnail !== $product->thumbnail) {
-            $product->update(['thumbnail' => $generatedThumbnail]);
+        $newThumbnail = $data['thumbnail'] ?? null;
+        
+        if ($newThumbnail && $newThumbnail !== $product->thumbnail) {
+            $product->update(['thumbnail' => $newThumbnail]);
+        } elseif (!$newThumbnail && !empty($data['images'])) {
+            $newThumbnail = $data['images'][0];
+            if ($newThumbnail !== $product->thumbnail) {
+                $product->update(['thumbnail' => $newThumbnail]);
+            }
         }
         
-        $debugInfo['product_after_update'] = $product->fresh()->toArray();
-
         return response()->json([
             'message' => 'Producto actualizado',
             'product' => $product->fresh(),
-            'debug' => $debugInfo,
         ]);
     }
 
