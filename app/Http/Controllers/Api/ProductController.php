@@ -69,7 +69,7 @@ class ProductController extends Controller
 
     private function isGeneratedThumbnailPath(?string $thumbnail): bool
     {
-        return is_string($thumbnail) && str_contains($thumbnail, '/storage/product-thumbnails/');
+        return is_string($thumbnail) && str_contains($thumbnail, '/storage/uploads/product-thumbnails/');
     }
 
     private function removeGeneratedThumbnail(?string $thumbnail): void
@@ -213,7 +213,7 @@ class ProductController extends Controller
             $this->removeGeneratedThumbnail($existingProduct->thumbnail);
         }
 
-        $filename = 'product-thumbnails/' . ($existingProduct?->id ?? 'new') . '-' . Str::uuid() . '.jpg';
+        $filename = 'uploads/product-thumbnails/' . ($existingProduct?->id ?? 'new') . '-' . Str::uuid() . '.jpg';
         Storage::disk('public')->put($filename, $thumbnailBinary);
 
         return $this->buildAbsoluteStorageUrl('/storage/' . $filename);
@@ -294,7 +294,7 @@ class ProductController extends Controller
                 $finalImage = $resized;
             }
             
-            $filename = 'product-thumbnails/' . Str::uuid() . '.jpg';
+            $filename = 'uploads/product-thumbnails/' . Str::uuid() . '.jpg';
             ob_start();
             $saved = imagejpeg($finalImage, null, 85);
             $compressed = ob_get_clean();
