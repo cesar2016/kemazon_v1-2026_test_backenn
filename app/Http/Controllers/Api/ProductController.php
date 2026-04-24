@@ -243,26 +243,34 @@ class ProductController extends Controller
         try {
             $parts = explode(',', $base64Image, 2);
             if (count($parts) !== 2) {
+                Log::warning('Invalid base64 image format - missing comma separator');
                 return null;
             }
             
             $binary = base64_decode($parts[1], true);
             if (!$binary) {
+                Log::warning('Invalid base64 image - decode failed');
                 return null;
             }
             
-            // Create image resource from binary data
             $image = imagecreatefromstring($binary);
             if (!$image) {
+                Log::warning('Invalid base64 image - could not create image resource');
                 return null;
             }
             
-            // Get original dimensions
             $width = imagesx($image);
             $height = imagesy($image);
             
-            // Calculate new dimensions (max 600px, maintain aspect ratio)
+            if ($width <= 0 || $height <= 0) {
+                imagedestroy($image);
+                Log::warning('Invalid image dimensions');
+                return null;
+            }
+            
             $maxSize = 600;
+            $finalImage = $image;
+            
             if ($width > $maxSize || $height > $maxSize) {
                 if ($width > $height) {
                     $newWidth = $maxSize;
@@ -272,32 +280,38 @@ class ProductController extends Controller
                     $newWidth = (int) ($width * ($maxSize / $height));
                 }
                 
-                // Create resized image
                 $resized = imagecreatetruecolor($newWidth, $newHeight);
+                if (!$resized) {
+                    imagedestroy($image);
+                    return null;
+                }
                 
-                // Fill white background for transparent images
                 $white = imagecolorallocate($resized, 255, 255, 255);
                 imagefill($resized, 0, 0, $white);
                 
-                // Resize with high quality
                 imagecopyresampled($resized, $image, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
                 imagedestroy($image);
-                $image = $resized;
+                $finalImage = $resized;
             }
             
-            // Compress and save as JPEG
             $filename = 'product-thumbnails/' . Str::uuid() . '.jpg';
             ob_start();
-            imagejpeg($image, null, 85);
+            $saved = imagejpeg($finalImage, null, 85);
             $compressed = ob_get_clean();
-            imagedestroy($image);
+            imagedestroy($finalImage);
             
-            if ($compressed) {
-                Storage::disk('public')->put($filename, $compressed);
-                return '/storage/' . $filename;
+            if (!$saved || !$compressed) {
+                Log::warning('Failed to compress image as JPEG');
+                return null;
             }
             
-            return null;
+            if (strlen($compressed) < 100) {
+                Log::warning('Compressed image is too small, likely invalid');
+                return null;
+            }
+            
+            Storage::disk('public')->put($filename, $compressed);
+            return '/storage/' . $filename;
         } catch (\Exception $e) {
             Log::warning('Failed to save base64 image', ['error' => $e->getMessage()]);
             return null;
