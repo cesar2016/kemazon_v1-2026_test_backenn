@@ -45,13 +45,9 @@ class ProductController extends Controller
     private function buildAbsoluteStorageUrl(string $path): string
     {
         $relativePath = '/' . ltrim($path, '/');
-        $origin = $this->currentRequestOrigin();
-
-        if ($origin) {
-            return rtrim($origin, '/') . $relativePath;
-        }
-
-        return url($relativePath);
+        $baseUrl = config('app.frontend_url', config('app.url'));
+        
+        return rtrim($baseUrl, '/') . $relativePath;
     }
 
     private function getThumbnailSource(array $data): ?string

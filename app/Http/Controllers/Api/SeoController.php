@@ -19,8 +19,12 @@ class SeoController extends Controller
 
         $images = $product->images ?? [];
         $thumbnail = $product->thumbnail ?? ($images[0] ?? null);
+        if ($thumbnail && !str_starts_with($thumbnail, 'http')) {
+            $thumbnail = rtrim(config('app.frontend_url', config('app.url')), '/') . $thumbnail;
+        }
         $price = number_format($product->price, 0, ',', '.');
-        $url = "https://kemazon.ar/#/products/{$slug}";
+        $baseUrl = rtrim(config('app.frontend_url', config('app.url')), '/');
+        $url = "{$baseUrl}/products/{$slug}";
 
         $meta = [
             'title' => "{$product->name} | KEMAZON.ar",
@@ -46,8 +50,12 @@ class SeoController extends Controller
         $auction = $product->auction;
         $images = $product->images ?? [];
         $thumbnail = $product->thumbnail ?? ($images[0] ?? null);
+        if ($thumbnail && !str_starts_with($thumbnail, 'http')) {
+            $thumbnail = rtrim(config('app.frontend_url', config('app.url')), '/') . $thumbnail;
+        }
         $currentPrice = number_format($auction->current_price ?? $auction->starting_price ?? 0, 0, ',', '.');
-        $url = "https://kemazon.ar/#/auctions/{$slug}";
+        $baseUrl = rtrim(config('app.frontend_url', config('app.url')), '/');
+        $url = "{$baseUrl}/auctions/{$slug}";
 
         $meta = [
             'title' => "{$product->name} | Subasta KEMAZON.ar",
