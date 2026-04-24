@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ProductLikeController;
 use App\Http\Controllers\Api\ProductVisitController;
+use App\Http\Controllers\Api\SeoController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
@@ -95,6 +96,9 @@ Route::middleware('auth.api')->group(function () {
 
     Route::get('/seller/orders', [OrderController::class, 'sellerOrders']);
 });
+
+Route::get('/seo/product/{slug}', [SeoController::class, 'product']);
+Route::get('/seo/auction/{slug}', [SeoController::class, 'auction']);
 
 Route::middleware(['auth.api', 'admin'])->group(function () {
     Route::get('/admin/users', [AdminController::class, 'index']);
