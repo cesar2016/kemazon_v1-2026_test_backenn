@@ -45,14 +45,8 @@ class GeneratePrerenderedPages extends Command
         $price = number_format($product->price, 0, ',', '.');
         $type = $product->type;
 
-        $images = $product->images ?? [];
-        $thumbnail = $product->thumbnail ?? ($images[0] ?? null);
-
-        if ($thumbnail && !str_starts_with($thumbnail, 'http')) {
-            $thumbnail = rtrim(config('app.url'), '/') . $thumbnail;
-        }
-
-        $pageUrl = rtrim($frontendUrl, '/') . "/products/{$slug}";
+        $pageUrl = rtrim($frontendUrl, '/') . "/producto/{$slug}";
+        $imageUrl = rtrim(config('app.url'), '/') . "/api/products/image/{$slug}";
         $badge = $type === 'auction' ? 'Subasta KEMAZON.ar' : 'Producto KEMAZON.ar';
 
         $html = <<<HTML
@@ -67,7 +61,7 @@ class GeneratePrerenderedPages extends Command
     <meta property="og:type" content="product">
     <meta property="og:title" content="{$name}">
     <meta property="og:description" content="{$description}">
-    <meta property="og:image" content="{$thumbnail}">
+    <meta property="og:image" content="{$imageUrl}">
     <meta property="og:url" content="{$pageUrl}">
     <meta property="og:site_name" content="KEMAZON.ar">
     <meta property="product:price:amount" content="{$product->price}">
@@ -76,7 +70,7 @@ class GeneratePrerenderedPages extends Command
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="{$name}">
     <meta name="twitter:description" content="{$description}">
-    <meta name="twitter:image" content="{$thumbnail}">
+    <meta name="twitter:image" content="{$imageUrl}">
     
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -134,7 +128,7 @@ class GeneratePrerenderedPages extends Command
 </head>
 <body>
     <div class="card">
-        <img src="{$thumbnail}" alt="{$name}" onerror="this.src='https://via.placeholder.com/600x315/f3f4f6/9ca3af?text=Imagen+no+disponible'">
+        <img src="{$imageUrl}" alt="{$name}" onerror="this.src='https://via.placeholder.com/600x315/f3f4f6/9ca3af?text=Imagen+no+disponible'">
         <div class="card-content">
             <span class="badge">{$badge}</span>
             <h1>{$name}</h1>
@@ -147,7 +141,24 @@ class GeneratePrerenderedPages extends Command
 </html>
 HTML;
 
-        $path = "prerendered/{$slug}.html";
+        $path = "prerendered/producto-{$slug}.html";
         Storage::disk('public')->put($path, $html);
+        
+        // Also generate auction version if it's an auction
+        if ($type === 'auction') {
+            $auctionPageUrl = rtrim($frontendUrl, '/') . "/subasta/{$slug}";
+            $auctionHtml = str_replace(
+                ['/producto/', 'producto-'],
+                ['/subasta/', 'subasta-'],
+                $html
+            );
+            $auctionHtml = str_replace(
+                'Subasta KEMAZON.ar',
+                'Subasta KEMAZON.ar',
+                $auctionHtml
+            );
+            $auctionPath = "prerendered/subasta-{$slug}.html";
+            Storage::disk('public')->put($auctionPath, $auctionHtml);
+        }
     }
 }
