@@ -15,6 +15,10 @@ use App\Http\Controllers\Api\ProductVisitController;
 use App\Http\Controllers\Api\SeoController;
 use Illuminate\Support\Facades\Route;
 
+Route::get('/test', function () {
+    return ['status' => 'ok'];
+});
+
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/login', [AuthController::class, 'login']);
