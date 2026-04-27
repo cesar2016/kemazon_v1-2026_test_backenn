@@ -34,6 +34,9 @@ Route::get('/categories', [CategoryController::class, 'index']);
 Route::get('/categories/{slug}', [CategoryController::class, 'show']);
 
 Route::get('/products', [ProductController::class, 'index']);
+Route::get('/products/{id}/image', [ProductController::class, 'getImage']);
+Route::get('/products/{id}/thumbnail', [ProductController::class, 'getImage']);
+Route::get('/products/image/{slug}', [ProductController::class, 'getImageBySlug']);
 Route::get('/products/{slug}', [ProductController::class, 'show']);
 Route::get('/products/search/{query}', [ProductController::class, 'index']);
 Route::post('/products/{id}/like', [ProductLikeController::class, 'toggle']);

@@ -534,4 +534,87 @@ class ProductController extends Controller
 
         return response()->json(['product' => $product]);
     }
+
+    public function getImageBySlug(string $slug): \Illuminate\Http\Response
+    {
+        $product = Product::where('slug', $slug)->firstOrFail();
+        
+        $imageSource = $product->thumbnail ?: ($product->images[0] ?? null);
+
+        if (!$imageSource) {
+            abort(404, 'Imagen no encontrada');
+        }
+
+        $imageData = null;
+        $mimeType = 'image/jpeg';
+
+        if (str_starts_with($imageSource, 'data:image/')) {
+            $parts = explode(',', $imageSource, 2);
+            if (count($parts) === 2) {
+                $imageData = base64_decode($parts[1]);
+                $mimeType = str_replace('data:', '', str_replace(';base64', '', $parts[0])) ?: 'image/jpeg';
+            }
+        }
+
+        if (!$imageData && str_starts_with($imageSource, '/storage/')) {
+            $relativePath = ltrim(str_replace('/storage/', '', $imageSource), '/');
+            if (Storage::disk('public')->exists($relativePath)) {
+                $imageData = Storage::disk('public')->get($relativePath);
+            }
+        }
+
+        if (!$imageData && filter_var($imageSource, FILTER_VALIDATE_URL)) {
+            $imageData = @file_get_contents($imageSource);
+        }
+
+        if (!$imageData) {
+            abort(404, 'Imagen no encontrada');
+        }
+
+        return response($imageData, 200, [
+            'Content-Type' => $mimeType,
+            'Cache-Control' => 'public, max-age=86400',
+        ]);
+    }
+    
+    public function getImage(int $id): \Illuminate\Http\Response
+    {
+        $product = Product::findOrFail($id);
+        $imageSource = $product->thumbnail ?: ($product->images[0] ?? null);
+
+        if (!$imageSource) {
+            abort(404, 'Imagen no encontrada');
+        }
+
+        $imageData = null;
+        $mimeType = 'image/jpeg';
+
+        if (str_starts_with($imageSource, 'data:image/')) {
+            $parts = explode(',', $imageSource, 2);
+            if (count($parts) === 2) {
+                $imageData = base64_decode($parts[1]);
+                $mimeType = str_replace('data:', '', str_replace(';base64', '', $parts[0])) ?: 'image/jpeg';
+            }
+        }
+
+        if (!$imageData && str_starts_with($imageSource, '/storage/')) {
+            $relativePath = ltrim(str_replace('/storage/', '', $imageSource), '/');
+            if (Storage::disk('public')->exists($relativePath)) {
+                $imageData = Storage::disk('public')->get($relativePath);
+            }
+        }
+
+        if (!$imageData && filter_var($imageSource, FILTER_VALIDATE_URL)) {
+            $imageData = @file_get_contents($imageSource);
+        }
+
+        if (!$imageData) {
+            abort(404, 'Imagen no encontrada');
+        }
+
+        return response($imageData, 200, [
+            'Content-Type' => $mimeType,
+            'Cache-Control' => 'public, max-age=86400',
+        ]);
+    }
 }
