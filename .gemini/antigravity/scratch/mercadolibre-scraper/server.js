@@ -733,7 +733,9 @@ projectList.forEach(p => {
     '<td>' + (p.hasImages ? '<span class="badge">Si</span>' : '<span class="badge-no">No</span>') + '</td>' +
     '<td>' + fecha + '</td>' +
     '<td class="actions">' +
-    '<a class="btn-view" href="/search-projects/' + p.name + '/products.json" target="_blank">JSON</a>' +
+    '<a class="btn-view" href="/search-projects/' + encodeURIComponent(p.name) + '/products.json" target="_blank">JSON</a>' +
+    '<a class="btn-share" href="https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(req.protocol + '://' + req.get('host') + '/share/' + encodeURIComponent(p.name) + '/0') + '" target="_blank" style="margin-left:8px;background:#3b5998;padding:6px 10px;border-radius:6px;color:#fff;text-decoration:none;font-size:12px">FB</a>' +
+    '<a class="btn-share" href="https://api.whatsapp.com/send?text=' + encodeURIComponent(req.protocol + '://' + req.get('host') + '/share/' + encodeURIComponent(p.name) + '/0') + '" target="_blank" style="margin-left:6px;background:#25D366;padding:6px 10px;border-radius:6px;color:#fff;text-decoration:none;font-size:12px">WhatsApp</a>' +
     '<button class="btn" onclick="eliminar(\'' + p.name + '\')">Eliminar</button>' +
     '</td>' +
     '</tr>';
