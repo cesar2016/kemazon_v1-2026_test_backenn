@@ -184,24 +184,7 @@ class ProductController extends Controller
             return null;
         }
 
-        $binaryContents = $this->getBinaryImageContents($source);
-
-        if (!$binaryContents) {
-            Log::warning('Product thumbnail source could not be read', [
-                'product_id' => $existingProduct?->id,
-                'source_preview' => Str::limit($source, 80),
-            ]);
-
-            return $source;
-        }
-
-        $thumbnailBinary = $this->generateThumbnailImage($binaryContents);
-
-        if (!$thumbnailBinary) {
-            Log::warning('Product thumbnail could not be generated, keeping original source', [
-                'product_id' => $existingProduct?->id,
-            ]);
-
+        if (str_starts_with($source, 'data:image/')) {
             return $source;
         }
 
@@ -209,34 +192,16 @@ class ProductController extends Controller
             $this->removeGeneratedThumbnail($existingProduct->thumbnail);
         }
 
-        $filename = 'uploads/product-thumbnails/' . ($existingProduct?->id ?? 'new') . '-' . Str::uuid() . '.jpg';
-        Storage::disk('public')->put($filename, $thumbnailBinary);
-
-        return $this->buildAbsoluteStorageUrl('/storage/' . $filename);
+        return $source;
     }
 
     private function prepareProductData(array $data): array
     {
-        // Save base64 thumbnail to storage and replace with URL
-        if (!empty($data['thumbnail']) && str_starts_with($data['thumbnail'], 'data:image/')) {
-            $savedUrl = $this->saveBase64Image($data['thumbnail']);
-            if ($savedUrl) {
-                $data['thumbnail'] = $savedUrl;
-            }
-            return $data;
-        }
-        
-        // Only get thumbnail from images if no thumbnail is set at all
         if (empty($data['thumbnail']) && !empty($data['images']) && is_array($data['images'])) {
             $data['thumbnail'] = $data['images'][0] ?? null;
         }
         
         return $data;
-    }
-    
-    private function saveBase64Image(string $base64Image): ?string
-    {
-        return $base64Image;
     }
     public function index(Request $request): JsonResponse
     {
