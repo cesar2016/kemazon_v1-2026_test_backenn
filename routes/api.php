@@ -103,6 +103,40 @@ Route::middleware('auth.api')->group(function () {
 Route::get('/seo/product/{slug}', [SeoController::class, 'product']);
 Route::get('/seo/auction/{slug}', [SeoController::class, 'auction']);
 
+Route::get('/download/prerendered', function () {
+    $prerenderedDir = storage_path('app/public/prerendered');
+    
+    if (!file_exists($prerenderedDir)) {
+        return response()->json(['error' => 'No hay archivos pre-renderizados'], 404);
+    }
+    
+    $files = glob("{$prerenderedDir}/*.html");
+    
+    if (empty($files)) {
+        return response()->json(['error' => 'No hay archivos pre-renderizados'], 404);
+    }
+    
+    $zipFile = storage_path('app/public/prerendered.zip');
+    
+    if (file_exists($zipFile)) {
+        unlink($zipFile);
+    }
+    
+    $zip = new ZipArchive();
+    if ($zip->open($zipFile, ZipArchive::CREATE) !== TRUE) {
+        return response()->json(['error' => 'No se pudo crear el ZIP'], 500);
+    }
+    
+    foreach ($files as $file) {
+        $filename = basename($file);
+        $zip->addFile($file, $filename);
+    }
+    
+    $zip->close();
+    
+    return response()->download($zipFile, 'prerendered-pages.zip')->deleteFileAfterSend(true);
+});
+
 Route::middleware(['auth.api', 'admin'])->group(function () {
     Route::get('/admin/users', [AdminController::class, 'index']);
     Route::post('/admin/users/{id}/toggle-status', [AdminController::class, 'toggleStatus']);
