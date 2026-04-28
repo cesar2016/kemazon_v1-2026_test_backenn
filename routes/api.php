@@ -23,8 +23,9 @@ Route::get('/og/producto/{slug}', function ($slug) {
     $userAgent = request()->header('User-Agent', '');
     $isCrawler = preg_match('/(facebook|whatsapp|twitter|linkedin|google|bot|crawler|spider)/i', $userAgent);
     
+    // Redirect regular users to frontend
     if (!$isCrawler) {
-        return response()->json(['error' => 'Not found'], 404);
+        return redirect('https://kemazon.ar/producto/' . $slug);
     }
     
     $product = \App\Models\Product::where('slug', $slug)->where('is_active', true)->first();
@@ -81,8 +82,9 @@ Route::get('/og/subasta/{slug}', function ($slug) {
     $userAgent = request()->header('User-Agent', '');
     $isCrawler = preg_match('/(facebook|whatsapp|twitter|linkedin|google|bot|crawler|spider)/i', $userAgent);
     
+    // Redirect regular users to frontend
     if (!$isCrawler) {
-        return response()->json(['error' => 'Not found'], 404);
+        return redirect('https://kemazon.ar/subasta/' . $slug);
     }
     
     $product = \App\Models\Product::where('slug', $slug)
