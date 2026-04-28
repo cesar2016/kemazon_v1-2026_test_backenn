@@ -20,6 +20,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
             'auth.api' => \App\Http\Middleware\AuthenticateApi::class,
         ]);
+        
+        $middleware->prependToGroup('web', \App\Http\Middleware\AllowFacebookCrawler::class);
+        $middleware->prependToGroup('api', \App\Http\Middleware\AllowFacebookCrawler::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (AuthenticationException $e, Request $request) {
