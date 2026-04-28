@@ -37,7 +37,7 @@ Route::get('/og/producto/{slug}', function ($slug) {
     $description = htmlspecialchars(substr($product->description ?? "Producto en KEMAZON.ar", 0, 160), ENT_QUOTES, 'UTF-8');
     $price = number_format($product->price, 0, ',', '.');
     $imageUrl = config('app.url') . "/api/products/image/{$slug}";
-    $frontendUrl = config('app.frontend_url', 'https://kemazon.ar');
+    $frontendUrl = 'https://kemazon.ar';
     $pageUrl = $frontendUrl . "/producto/{$slug}";
     
     $html = <<<HTML
@@ -69,7 +69,7 @@ Route::get('/og/producto/{slug}', function ($slug) {
     <h1>{$name}</h1>
     <p>💰 {$price}</p>
     <p>Redireccionando a <a href="{$frontendUrl}/producto/{$slug}">KEMAZON.ar</a>...</p>
-    <script>setTimeout(function(){ window.location.href = "{$frontendUrl}/producto/{$slug}"; }, 2000);</script>
+    <script>setTimeout(function(){ window.location.href = "{$pageUrl}"; }, 2000);</script>
 </body>
 </html>
 HTML;
@@ -99,7 +99,7 @@ Route::get('/og/subasta/{slug}', function ($slug) {
     $description = htmlspecialchars(substr($product->description ?? "Subasta en KEMAZON.ar", 0, 160), ENT_QUOTES, 'UTF-8');
     $price = number_format($product->auction?->current_price ?? $product->price ?? 0, 0, ',', '.');
     $imageUrl = config('app.url') . "/api/products/image/{$slug}";
-    $frontendUrl = config('app.frontend_url', 'https://kemazon.ar');
+    $frontendUrl = 'https://kemazon.ar';
     $pageUrl = $frontendUrl . "/subasta/{$slug}";
     
     $html = <<<HTML
@@ -129,7 +129,7 @@ Route::get('/og/subasta/{slug}', function ($slug) {
     <h1>{$name}</h1>
     <p>🏷️ Subasta: {$price}</p>
     <p>Redireccionando a <a href="{$frontendUrl}/subasta/{$slug}">KEMAZON.ar</a>...</p>
-    <script>setTimeout(function(){ window.location.href = "{$frontendUrl}/subasta/{$slug}"; }, 2000);</script>
+    <script>setTimeout(function(){ window.location.href = "{$pageUrl}"; }, 2000);</script>
 </body>
 </html>
 HTML;
