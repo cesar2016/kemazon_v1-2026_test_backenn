@@ -335,7 +335,7 @@ class ProductController extends Controller
                 $rules['price'] = 'required|numeric|min:0';
                 $rules['stock'] = 'required|integer|min:0';
             } else {
-                $rules['price'] = 'required|numeric|min:0';
+                $rules['price'] = 'nullable|numeric|min:0';
                 $rules['stock'] = 'required|integer|min:0';
             }
 
