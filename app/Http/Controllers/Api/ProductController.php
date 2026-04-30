@@ -335,8 +335,8 @@ class ProductController extends Controller
                 $rules['price'] = 'required|numeric|min:0';
                 $rules['stock'] = 'required|integer|min:0';
             } else {
-                $rules['price'] = 'nullable|numeric|min:0';
-                $rules['stock'] = 'nullable|integer|min:0';
+                $rules['price'] = 'required|numeric|min:0';
+                $rules['stock'] = 'required|integer|min:0';
             }
 
             $validator = Validator::make($request->all(), $rules);
@@ -351,8 +351,8 @@ class ProductController extends Controller
                 'slug' => Str::slug($request->name) . '-' . uniqid(),
                 'category_id' => $request->category_id,
                 'description' => $request->description,
-                'price' => $request->type === 'direct' ? $request->price : 0,
-                'stock' => $request->type === 'direct' ? $request->stock : 0,
+                'price' => $request->price ?? 0,
+                'stock' => $request->stock ?? 0,
                 'sku' => 'KMA-' . strtoupper(Str::random(8)),
                 'images' => $request->images ?? [],
                 'thumbnail' => $request->thumbnail ?? null,
@@ -445,7 +445,12 @@ class ProductController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $data = $request->except(['user_id', 'slug', 'sku', 'type']);
+        $data = $request->except(['user_id', 'slug', 'sku', 'type', 'stock', 'price']);
+        
+        if ($product->type === 'auction') {
+            $data['stock'] = 0;
+            $data['price'] = 0;
+        }
         
         Log::info('[UPDATE PRODUCT] Raw data keys: ' . implode(',', array_keys($data)));
         Log::info('[UPDATE PRODUCT] thumbnail in request: ' . ($data['thumbnail'] ?? 'NOT SET'));
