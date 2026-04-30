@@ -448,7 +448,7 @@ class ProductController extends Controller
         $data = $request->except(['user_id', 'slug', 'sku', 'type', 'stock', 'price']);
         
         if ($product->type === 'auction') {
-            $data['stock'] = 0;
+            $data['stock'] = 1;
             $data['price'] = 0;
         }
         
