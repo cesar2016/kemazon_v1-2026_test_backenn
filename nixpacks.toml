@@ -1,3 +1,6 @@
+[setup]
+php = "8.3"
+
 [start]
 cmd = "mkdir -p /app/public/storage/uploads && cp -r /app/storage/app/public/uploads/* /app/public/storage/uploads/ 2>/dev/null || true; php artisan storage:link --relative 2>/dev/null || ln -sf /app/storage/app/public/uploads /app/public/storage; php artisan seo:generate-prerendered 2>/dev/null || true; php artisan config:clear && php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8888"
 
