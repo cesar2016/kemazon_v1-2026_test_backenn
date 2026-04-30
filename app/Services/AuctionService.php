@@ -78,7 +78,7 @@ class AuctionService
                     );
                 }
             } else {
-                $auction->update(['status' => 'ended']);
+                $auction->update(['status' => 'ended', 'is_active' => false]);
 
                 // Si hubo pujas pero no alcanzó reserva o no hubo ganador
                 $allParticipants = Bid::where('auction_id', $auction->id)
