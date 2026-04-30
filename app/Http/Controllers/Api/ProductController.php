@@ -445,7 +445,12 @@ class ProductController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $data = $request->except(['user_id', 'slug', 'sku', 'type']);
+        $data = $request->except(['user_id', 'slug', 'sku', 'type', 'stock', 'price']);
+        
+        if ($product->type === 'auction') {
+            $data['stock'] = 0;
+            $data['price'] = 0;
+        }
         
         Log::info('[UPDATE PRODUCT] Raw data keys: ' . implode(',', array_keys($data)));
         Log::info('[UPDATE PRODUCT] thumbnail in request: ' . ($data['thumbnail'] ?? 'NOT SET'));
@@ -454,7 +459,7 @@ class ProductController extends Controller
         $data = $this->prepareProductData($data);
         
         Log::info('[UPDATE PRODUCT] After prepareProductData, thumbnail: ' . ($data['thumbnail'] ?? 'NOT SET'));
-        
+            
         $product->update($data);
         
         $newThumbnail = $data['thumbnail'] ?? null;
