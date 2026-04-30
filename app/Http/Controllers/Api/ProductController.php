@@ -421,7 +421,7 @@ class ProductController extends Controller
                 ], 403);
             }
 
-            if ($auction && $auction->is_active) {
+            if ($auction && $auction->is_active && $auction->status === 'active') {
                 return response()->json([
                     'message' => 'No puedes editar una subasta mientras está activa'
                 ], 403);
