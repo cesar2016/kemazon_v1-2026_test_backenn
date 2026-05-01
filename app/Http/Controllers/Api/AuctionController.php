@@ -193,9 +193,10 @@ class AuctionController extends Controller
             'starting_price' => 'sometimes|numeric|min:0',
             'reserve_price' => 'nullable|numeric|min:0',
             'buy_now_price' => 'nullable|numeric|gt:starting_price',
-            'starts_at' => 'sometimes|date|after:now',
+            'starts_at' => 'sometimes|date',
             'ends_at' => 'sometimes|date|after:starts_at',
             'is_active' => 'sometimes|boolean',
+            'has_reserve' => 'sometimes|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -208,7 +209,8 @@ class AuctionController extends Controller
             'buy_now_price',
             'starts_at',
             'ends_at',
-            'is_active'
+            'is_active',
+            'has_reserve'
         ]));
 
         return response()->json([
