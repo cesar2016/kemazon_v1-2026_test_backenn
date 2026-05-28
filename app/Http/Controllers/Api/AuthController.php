@@ -20,6 +20,7 @@ class AuthController extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
             'phone' => 'nullable|string|max:20',
+            'avatar' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
@@ -31,6 +32,7 @@ class AuthController extends Controller
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'phone' => $request->phone,
+            'avatar' => $request->avatar,
             'is_seller' => false,
             'is_admin' => false,
         ]);
@@ -106,7 +108,7 @@ class AuthController extends Controller
             'phone' => 'nullable|string|max:20',
             'document_type' => 'nullable|string|max:20',
             'document_number' => 'nullable|string|max:20',
-            'avatar' => 'nullable|string|max:500',
+            'avatar' => 'nullable|string',
             'mercadopago_access_token' => 'nullable|string',
             'mercadopago_public_key' => 'nullable|string',
         ]);

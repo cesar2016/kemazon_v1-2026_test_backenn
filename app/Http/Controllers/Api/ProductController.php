@@ -20,6 +20,11 @@ class ProductController extends Controller
             return null;
         }
 
+        $origin = request()->headers->get('origin');
+        if ($origin) {
+            return rtrim($origin, '/');
+        }
+
         $forwardedProto = request()->headers->get('x-forwarded-proto');
         $scheme = $forwardedProto ? trim(explode(',', $forwardedProto)[0]) : request()->getScheme();
         $host = request()->headers->get('x-forwarded-host')
@@ -28,7 +33,7 @@ class ProductController extends Controller
         $port = request()->headers->get('x-forwarded-port') ?: request()->getPort();
 
         if (!$host) {
-            return null;
+            return config('app.url');
         }
 
         $origin = $scheme . '://' . $host;
@@ -39,7 +44,7 @@ class ProductController extends Controller
             $origin .= ':' . $port;
         }
 
-        return $origin;
+        return rtrim($origin, '/');
     }
 
     private function buildAbsoluteStorageUrl(string $path): string
@@ -415,9 +420,11 @@ class ProductController extends Controller
         } else {
             $auction = $product->auction;
 
+            // Only allow editing if it has 0 bids. 
+            // If it has bids, it's blocked whether it's active or ended.
             if ($auction && $auction->bids()->count() > 0) {
                 return response()->json([
-                    'message' => 'No puedes editar un producto con ofertas activas'
+                    'message' => 'No puedes editar un producto de subasta que ya tiene ofertas'
                 ], 403);
             }
 
@@ -439,7 +446,7 @@ class ProductController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $data = $request->except(['user_id', 'slug', 'sku', 'type', 'stock', 'price']);
+        $data = $request->except(['user_id', 'slug', 'sku', 'type']);
         
         if ($product->type === 'auction') {
             $data['stock'] = 1;
@@ -452,25 +459,15 @@ class ProductController extends Controller
         
         $data = $this->prepareProductData($data);
         
-        Log::info('[UPDATE PRODUCT] After prepareProductData, thumbnail: ' . ($data['thumbnail'] ?? 'NOT SET'));
-            
         $product->update($data);
         
-        $newThumbnail = $data['thumbnail'] ?? null;
-        
-        Log::info('[UPDATE PRODUCT] Current thumbnail in DB: ' . ($product->thumbnail ?? 'NOT SET'));
-        Log::info('[UPDATE PRODUCT] New thumbnail to set: ' . ($newThumbnail ?? 'NOT SET'));
-        Log::info('[UPDATE PRODUCT] Are they different? ' . ($newThumbnail !== $product->thumbnail ? 'YES' : 'NO'));
-        
-        if ($newThumbnail && $newThumbnail !== $product->thumbnail) {
-            Log::info('[UPDATE PRODUCT] Updating thumbnail to: ' . $newThumbnail);
-            $product->update(['thumbnail' => $newThumbnail]);
-        } elseif (!$newThumbnail && !empty($data['images'])) {
-            $newThumbnail = $data['images'][0];
-            if ($newThumbnail !== $product->thumbnail) {
-                Log::info('[UPDATE PRODUCT] Using first image as thumbnail: ' . $newThumbnail);
+        try {
+            $newThumbnail = $this->storeGeneratedThumbnail($data, $product);
+            if ($newThumbnail && $newThumbnail !== $product->thumbnail) {
                 $product->update(['thumbnail' => $newThumbnail]);
             }
+        } catch (\Exception $e) {
+            Log::warning('Failed to update thumbnail: ' . $e->getMessage());
         }
         
         $updatedProduct = $product->fresh();

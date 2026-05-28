@@ -60,7 +60,7 @@ class AuctionController extends Controller
                     ->orderBy('ends_at', 'asc');
                 break;
             case 'new':
-                $query->where('status', 'active')
+                $query->whereIn('status', ['active', 'pending'])
                     ->orderBy('created_at', 'desc');
                 break;
             case 'finished':
@@ -69,7 +69,7 @@ class AuctionController extends Controller
                 break;
             case 'active':
             default:
-                $query->where('status', 'active')
+                $query->whereIn('status', ['active', 'pending'])
                     ->orderBy('ends_at', 'asc');
                 break;
         }
@@ -202,16 +202,17 @@ class AuctionController extends Controller
             return response()->json(['message' => 'No tienes permiso'], 403);
         }
 
+        // Refined rule: block if any bids exist.
         if ($auction->bids()->count() > 0) {
-            return response()->json(['message' => 'No puedes editar una subasta con pujas'], 400);
+            return response()->json(['message' => 'No puedes editar una subasta que ya tiene ofertas'], 400);
         }
 
         $validator = Validator::make($request->all(), [
             'starting_price' => 'sometimes|numeric|min:0',
             'reserve_price' => 'nullable|numeric|min:0',
-            'buy_now_price' => 'nullable|numeric|gt:starting_price',
+            'buy_now_price' => 'nullable|numeric',
             'starts_at' => 'sometimes|date',
-            'ends_at' => 'sometimes|date|after:starts_at',
+            'ends_at' => 'sometimes|date',
             'is_active' => 'sometimes|boolean',
             'has_reserve' => 'sometimes|boolean',
         ]);
@@ -220,7 +221,7 @@ class AuctionController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $auction->update($request->only([
+        $updateData = $request->only([
             'starting_price',
             'reserve_price',
             'buy_now_price',
@@ -228,7 +229,25 @@ class AuctionController extends Controller
             'ends_at',
             'is_active',
             'has_reserve'
-        ]));
+        ]);
+
+        if (isset($updateData['ends_at'])) {
+            $endsAt = new \DateTime($updateData['ends_at']);
+            if ($endsAt > now()) {
+                $startsAt = isset($updateData['starts_at']) ? new \DateTime($updateData['starts_at']) : new \DateTime($auction->starts_at);
+                $updateData['status'] = $startsAt > now() ? 'pending' : 'active';
+                $updateData['is_active'] = true;
+                
+                // If we are restarting, we might want to clear previous winner
+                $updateData['winner_id'] = null;
+            }
+        }
+
+        if (isset($updateData['starting_price']) && $auction->bids()->count() === 0) {
+            $updateData['current_price'] = $updateData['starting_price'];
+        }
+
+        $auction->update($updateData);
 
         return response()->json([
             'message' => 'Subasta actualizada',
